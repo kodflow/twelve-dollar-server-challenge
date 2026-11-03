@@ -1,0 +1,42 @@
+# name	commit	dir	batch2_users	batch2_us_req	state_signal	fd_cap	tree	env
+# commit HEAD means the commit the harness itself is checked out at.
+# batch2_* are the scores in benchmarks/batch-2.md (anchors only); they calibrate c.
+# state_signal=1 means the target prints a State line on SIGUSR1 (anchors die on it).
+# fd_cap caps the extrapolation for a target that keeps every connection open
+# (no Connection: close, no eviction): batch 2 shows such servers holding 71,000.
+# go-loop-kodflow has none: its connections are io_uring direct descriptors
+# (IORING_FILE_INDEX_ALLOC, IOSQE_FIXED_FILE) across three rings, 196,605
+# slots, which take no process descriptor, so LimitNOFILE=65535 does not
+# bound them; the official harness has no fd cap either (README.md, Scoring).
+# The steps it held are in BENCH.md, S12: 120,000 held, 140,000 once in six.
+# tree names the prepared build a row runs; a variant row shares its base's
+# tree and differs only by env (space-separated K=V, or -).
+# go-loop-kodflow runs as shipped: GOMAXPROCS one above the CPUs, which the
+# binary sets itself, and the SDK's LoopsAuto (one loop per P but one);
+# go-loop-kodflow-gmp2 names GOMAXPROCS=2 explicitly, the same setting on the
+# 1-vCPU box, so it replicates it.
+# go-loop-kodflow-bw<d> bound the SDK's grouped io_uring wait at <d>
+# (LOOP_BATCH_WAIT); go-loop-kodflow ships 4 ms since S13, -bw250us is the
+# SDK's own default. Since
+# ADR 0202 the wait groups when two receives are expected within the bound,
+# so at about 1,000 requests a second it starts from 1-2 ms (S13).
+# go-loop-kodflow-r1* run one ring (MAX_CONNS=65000) instead of three, to
+# tell the grouped wait's effect from the rings' cost (S12: 6.9 µs/req);
+# S13 measured -r1 at 250 µs, before the default moved to 4 ms.
+# go-loop-kodflow-noinc switches off the SDK's incremental provided-buffer
+# consumption (IOU_PBUF_RING_INC, on by default since SDK #798), for S20.
+# go-loop-kodflow-nobundle switched off the receive bundles (uring-recv-bundle,
+# SDK #800) the S21 build opted into; the submission no longer opts in, so
+# it now runs the same configuration as go-loop-kodflow.
+go-loop-kodflow	HEAD	submissions/go-loop-kodflow	-	-	1	-	go-loop-kodflow	-
+go-loop-kodflow-gmp2	HEAD	submissions/go-loop-kodflow	-	-	1	-	go-loop-kodflow	GOMAXPROCS=2
+go-loop-kodflow-bw250us	HEAD	submissions/go-loop-kodflow	-	-	1	-	go-loop-kodflow	LOOP_BATCH_WAIT=250us
+go-loop-kodflow-bw1ms	HEAD	submissions/go-loop-kodflow	-	-	1	-	go-loop-kodflow	LOOP_BATCH_WAIT=1ms
+go-loop-kodflow-bw2ms	HEAD	submissions/go-loop-kodflow	-	-	1	-	go-loop-kodflow	LOOP_BATCH_WAIT=2ms
+go-loop-kodflow-bw4ms	HEAD	submissions/go-loop-kodflow	-	-	1	-	go-loop-kodflow	LOOP_BATCH_WAIT=4ms
+go-loop-kodflow-r1	HEAD	submissions/go-loop-kodflow	-	-	1	-	go-loop-kodflow	MAX_CONNS=65000
+go-loop-kodflow-r1-bw4ms	HEAD	submissions/go-loop-kodflow	-	-	1	-	go-loop-kodflow	MAX_CONNS=65000 LOOP_BATCH_WAIT=4ms
+go-loop-kodflow-noinc	HEAD	submissions/go-loop-kodflow	-	-	1	-	go-loop-kodflow	KITSUNIUM_NET_DISABLE=uring-pbuf-inc
+go-loop-kodflow-nobundle	HEAD	submissions/go-loop-kodflow	-	-	1	-	go-loop-kodflow	KITSUNIUM_NET_DISABLE=uring-recv-bundle
+anchor-72	9df7449fe8019051793291029b00db760f19f1fd	submissions/go-epoll-MegaPanchamZ	165000	51	0	-	anchor-72	-
+anchor-112	f3afa25403ac5ee2a2030337de1afd635cd6ab65	submissions/c-iouring-ssmurfgg04-gif	150000	50	0	-	anchor-112	-
